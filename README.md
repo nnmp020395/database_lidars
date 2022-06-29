@@ -54,7 +54,7 @@ conda install xarray dask netCDF4 bottleneck
 
 ### convert_raw_file.py
 
-Ce script permet de convertir les données des lidars différents en format homogène, qui va stocker les signaux bruts, les infos de canaux, altitude et temps. 
+Ce script permet de convertir les données des lidars différents en format homogène, qui va stocker les coordonnées :altitude et temps. Ces coordonnées servent à extraire les températures et les pressions correspondantes.  
 
 ### get_simulate_data.py
 
