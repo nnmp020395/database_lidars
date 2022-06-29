@@ -69,6 +69,9 @@ def transfert_ipral_database(filepath):
     }
     return data_dict
 
+# def transfert_er2_database(filepath):
+#     data = xr.open_dataset(filepath, group='')
+#     start_time = 
 
 def option_database(type_database, filepath):
     if type_database == 'opar':
@@ -77,7 +80,7 @@ def option_database(type_database, filepath):
     elif type_database == 'ipral':
         output_dataset_dict = transfert_ipral_database(filepath)
         return output_dataset_dict
-#     elif type_database == 'er2_hsrl2':
+#     elif type_database == 'er2-hsrl2':
 #     elif type_database == 'lng_hsrl':
     else:
         print('Please entry type_database')
@@ -87,14 +90,14 @@ def option_database(type_database, filepath):
 from argparse import Namespace, ArgumentParser
 parser = ArgumentParser()
 parser.add_argument("--path_of_tmp_file", "-file", type=str, help="path file", required=True)
-parser.add_argument("--option", "-opt", type=str, help="intrusment name", required=True)
+parser.add_argument("--instrument", "-inst", type=str, help="intrusment name", required=True)
 opts = parser.parse_args()
 print(opts)
 
 if __name__ == "__main__":
-    dict_data = option_database(opts.option, opts.path_of_tmp_file)
+    dict_data = option_database(opts.instrument, opts.path_of_tmp_file)
     tmp_dataset = xr.Dataset.from_dict(dict_data)
-    if os.path.exists('/home/nmpnguyen/tmp_file.nc'):
-        os.remove('/home/nmpnguyen/tmp_file.nc')
-    tmp_dataset.to_netcdf('/home/nmpnguyen/tmp_file.nc', 'w')
+    if os.path.exists('/homedata/nmpnguyen/database_lidars/tmp_file.nc'):
+        os.remove('/homedata/nmpnguyen/database_lidars/tmp_file.nc')
+    tmp_dataset.to_netcdf('/homedata/nmpnguyen/database_lidars/tmp_file.nc', 'w')
 
