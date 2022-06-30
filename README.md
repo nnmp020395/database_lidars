@@ -10,7 +10,7 @@ Ces scripts sont faits pour être utilisés sur le mesocentre IPSL Climserv. Ava
 ### Téléchargement des scripts
 
 ```bash
-git clone https://gitlab.in2p3.fr/ipsl/sirta/ipral/ipral-tools.git
+git clone git@github.com:nnmp020395/database_lidars.git
 ```
 
 ### Installation de l'environnement python
