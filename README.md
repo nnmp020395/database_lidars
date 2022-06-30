@@ -64,4 +64,13 @@ Ce script utilise les coordonnées des données pour créer un base des Tempéra
 
 Ce script applique spécifiquement à Ipral pour marquer les flags, en fonction de profils de données. Ces infos vont être enregistrées dans les fichiers de sortie à la fin du processus
 
+## Outputs 
+
+### Temporaire
+
+- tmp_file.nc
+- tmp_simul.nc
+- tmp_main_process.nc
+
+### Officiel
 
