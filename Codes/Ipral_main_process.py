@@ -104,7 +104,7 @@ class processing:
         return betamol_Z0
 
 
-    def processed(w, channel, mode, pression, ta, ztop, zbottom, data):    
+    def computation(w, channel, mode, pression, ta, ztop, zbottom, data):    
         ### Range corrected signal - Background
         iprcs = pre_processing.correction_background(data, channel)
 
@@ -175,16 +175,8 @@ class processing:
 # from ipral_variables_simulation import simulate
 
 
-# if opts.add_file:
-#     ipral_folder = [Path(opts.add_file)]
-# else:
-#     # IPRAL_SIMUL_PATH = Path('/homedata/nmpnguyen/IPRAL/RF/Simul/')
-#     # ipral_simul_folder = sorted(IPRAL_SIMUL_PATH.glob('*2018*_simul.pkl'))
-#     IPRAL_PATH = Path("/bdd/SIRTA/pub/basesirta/1a/ipral/2018/")
-#     ipral_folder = sorted(IPRAL_PATH.glob('**/**/ipral_1a_Lz1R15mF30sPbck_v01_*_000000_1440.nc'))
 
-
-def main(opts):
+def ensemble(opts):
     ### Determiner z0
     zbottom = opts.zbottom #5000
     ztop = opts.ztop #7000
@@ -192,30 +184,37 @@ def main(opts):
     wavelengths = [355, 532] #355, 532, 
     channels = ['rcs_12', 'rcs_16'] #'rcs_13', , 'rcs_17'
     modes = ['355-analog-NearField', '532-analog-NearField'] #'355-photocounting-NearField' , '532-photocounting-NearField'
-
-    # for file_simul in ipral_simul_folder: 
-        # file_ipral_name = file_simul.name.split('_simul')[0]+'.nc'
-        # file_ipral = list(Path('/bdd/SIRTA/pub/basesirta/1a/ipral/').glob('**/**/'+file_ipral_name))[0]
+    
+    # if opts.add_file:
+    #     ipral_folder = [Path(opts.add_file)]
+    # else:
+    #     # IPRAL_SIMUL_PATH = Path('/homedata/nmpnguyen/IPRAL/RF/Simul/')
+    #     # ipral_simul_folder = sorted(IPRAL_SIMUL_PATH.glob('*2018*_simul.pkl'))
+    #     IPRAL_PATH = Path("/bdd/SIRTA/pub/basesirta/1a/ipral/2018/")
+    #     ipral_folder = sorted(IPRAL_PATH.glob('**/**/ipral_1a_Lz1R15mF30sPbck_v01_*_000000_1440.nc'))
 
     file_ipral = opts.file
     print(file_ipral)
     ipralraw = xr.open_dataset(file_ipral)
     # ipralsimul = pd.read_pickle(file_simul)
-    ipralsimul = simulate(file_ipral)
-    pression = ipralsimul['pression'].unstack(level=1)
-    ta = ipralsimul['ta'].unstack(level=1)
+    # ipralsimul = simulate(file_ipral)
+    # pression = ipralsimul['pression'].unstack(level=1)
+    # ta = ipralsimul['ta'].unstack(level=1)
+    ipralsimul = xr.open_dataset(opts.simul)
+    pression = ipralsimul['pression']
+    ta = ipralsimul['ta']
 
-    new_signal = np.array([processed(wavelengths[nb], channels[nb], modes[nb], pression, ta, ztop, zbottom, ipralraw)[0] for nb in range(2)])
-    new_simul = np.array([processed(wavelengths[nb], channels[nb], modes[nb], pression, ta, ztop, zbottom, ipralraw)[1] for nb in range(2)])
+    new_signal = np.array([processing.computation(wavelengths[nb], channels[nb], modes[nb], pression, ta, ztop, zbottom, ipralraw)[0] for nb in range(2)])
+    new_simul = np.array([processing.computation(wavelengths[nb], channels[nb], modes[nb], pression, ta, ztop, zbottom, ipralraw)[1] for nb in range(2)])
 
 
     ### Insert output path 
-    if opts.out_file:
-        output_path = Path("/homedata/nmpnguyen/IPRAL/RF/Calibrated/", file_ipral.name.split('.')[0]+opts.out_file)
-        opt_write = 'w'
-    else:
-        output_path = Path("/homedata/nmpnguyen/IPRAL/RF/Calibrated/", file_ipral.name)
-        opt_write = 'a'
+    # if opts.out_file:
+    #     output_path = Path("/homedata/nmpnguyen/IPRAL/RF/Calibrated/", file_ipral.name.split('.')[0]+opts.out_file)
+    #     opt_write = 'w'
+    # else:
+    #     output_path = Path("/homedata/nmpnguyen/IPRAL/RF/Calibrated/", file_ipral.name)
+    #     opt_write = 'a'
 
     output_path = Path('/home/nmpnguyen/tmp_main_process.nc')
     print(f'output file: {output_path}')
@@ -234,5 +233,3 @@ def main(opts):
     ds.to_netcdf(output_path, 'w')
     return 0
 
-if __name__ == "__main__":
-    # import configs 

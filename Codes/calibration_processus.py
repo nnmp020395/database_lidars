@@ -17,6 +17,18 @@ import sys
 sys.path.append('/homedata/nmpnguyen/database_lidars/Codes/')
 import config_calib as cfg
 
-if cfg.instrument == 'ipral'
-	import Ipral_main_process.ensemble as ensemble
+# according to the instrument
+if cfg.instrument == 'ipral':
+    import Ipral_main_process.ensemble as ensemble
+    ensemble(cfg)
+elif cfg.instrument == 'er2-hsrl2':
+    import ER2_main_process.ensemble as ensemble
+    ensemble(cfg)
 
+# according to the observation mode
+if cfg.mode == 'nadir':
+    import nadir_main_process.ensemble as ensemble
+    ensemble(cfg)
+elif cfg.mode == 'zenith':
+    import zenith_main_process.ensemble as ensemble
+    ensemble(cfg)

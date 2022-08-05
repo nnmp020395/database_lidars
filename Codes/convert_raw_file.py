@@ -89,13 +89,13 @@ def option_database(type_database, filepath):
 
 from argparse import Namespace, ArgumentParser
 parser = ArgumentParser()
-parser.add_argument("--path_of_tmp_file", "-file", type=str, help="path file", required=True)
+parser.add_argument("--path_of_raw_file", "-file", type=str, help="path file", required=True)
 parser.add_argument("--instrument", "-inst", type=str, help="intrusment name", required=True)
 opts = parser.parse_args()
 print(opts)
 
 if __name__ == "__main__":
-    dict_data = option_database(opts.instrument, opts.path_of_tmp_file)
+    dict_data = option_database(opts.instrument, opts.path_of_raw_file)
     tmp_dataset = xr.Dataset.from_dict(dict_data)
     if os.path.exists('/homedata/nmpnguyen/database_lidars/tmp_file.nc'):
         os.remove('/homedata/nmpnguyen/database_lidars/tmp_file.nc')

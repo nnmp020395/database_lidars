@@ -6,6 +6,8 @@ import numpy as np
 from datetime import datetime, timedelta
 from tqdm import tqdm
 from pathlib import Path
+import scipy.interpolate as spi
+import math
 
 """
   update 2022-03-28
@@ -26,7 +28,7 @@ from pathlib import Path
 def variables_from_era(file):
     """
     Le script permet de lire input ERA5 et outpt Pression/Temperature
-    input = opar file path
+    input = raw file path
     
     """
     print('-----GET TMP FILE-----')
@@ -80,39 +82,49 @@ def variables_from_era(file):
     print('variables_from_era --> end')
     return output_era
 
-def simulate_atb_mol(era, ratio):
+def simulate_Rayleight_coef(output_era):
     """
     Input is the output dataframe of variables_from_era function --> don't need anymore
     """
-    print('-----SIMULATE ATTENUATED BACKSCATTERING FROM ERA5-----')
+    
+    print('-----SIMULATE EXTINCTION & BACKSCATTER COEFF. FROM ERA5-----')
+    # compute molecular backscatter 
+    #----------------------------------------------------------------------------------
     k = 1.38e-23
     const355 = (5.45e-32/1.38e-23)*((355e-3/0.55)**(-4.09))
     const532 = (5.45e-32/1.38e-23)*((532e-3/0.55)**(-4.09))
-    era['beta355'] = const355*era['pression'].div(era['ta'])
-    era['beta532'] = const532*era['pression'].div(era['ta'])
-    #ratio = 0.119/2
-    era['alpha355'] = era['beta355']/ratio
-    era['alpha532'] = era['beta532']/ratio
-    era = era.sort_index()
-    level = np.unique(era.index.get_level_values(0))
-    time = np.unique(era.index.get_level_values(1)) 
-    era['tau355']=0 ;  era['tau532'] = 0
-    A = pd.DataFrame()
-    for t in time:
-        a = era.loc[pd.IndexSlice[:,t],:].sort_index(ascending = False)
-        for i in range(1, a.shape[0]):
-            a['tau355'].iloc[i] = a['tau355'].iloc[i-1] + a['alpha355'].iloc[i]*(a['altitude'].iloc[i]-a['altitude'].iloc[i-1])
-            a['tau532'].iloc[i] = a['tau532'].iloc[i-1] + a['alpha532'].iloc[i]*(a['altitude'].iloc[i]-a['altitude'].iloc[i-1])
-        A = pd.concat((A, a), axis=0)
-    A['beta355mol'] = A['beta355']*np.exp(-2*A['tau355'])
-    A['beta532mol'] = A['beta532']*np.exp(-2*A['tau532'])
-    print('simulate_atb_mol --> end')
-    return A
+    output_era['beta355'] = const355*output_era['pression'].div(output_era['ta'])
+    output_era['beta532'] = const532*output_era['pression'].div(output_era['ta'])
+    # compute extinction coef
+    #----------------------------------------------------------------------------------
+    ratio = 8*math.pi/3 # 0.119
+    output_era['alpha355'] = output_era['beta355']*ratio
+    output_era['alpha532'] = output_era['beta532']*ratio
+    output_era = output_era.sort_index()
+    level = np.unique(output_era.index.get_level_values(0))
+    time = np.unique(output_era.index.get_level_values(1)) 
+    # compute transmiitance two-way 
+    #----------------------------------------------------------------------------------
+    # output_era['tau355'] = 0 
+    # output_era['tau532'] = 0
+    # A = pd.DataFrame()
+    # for t in time:
+    #     a = output_era.loc[pd.IndexSlice[:,t],:].sort_index(ascending = False)
+    #     for i in range(1, a.shape[0]):
+    #         a['tau355'].iloc[i] = a['tau355'].iloc[i-1] + a['alpha355'].iloc[i]*(a['altitude'].iloc[i]-a['altitude'].iloc[i-1])
+    #         a['tau532'].iloc[i] = a['tau532'].iloc[i-1] + a['alpha532'].iloc[i]*(a['altitude'].iloc[i]-a['altitude'].iloc[i-1])
+    #     A = pd.concat((A, a), axis=0)
+    # compute attenuated molecular backscatter 
+    #----------------------------------------------------------------------------------
+    # A['beta355mol'] = A['beta355']*np.exp(-2*A['tau355'])
+    # A['beta532mol'] = A['beta532']*np.exp(-2*A['tau532'])
+    print('simulate_Rayleight_coef --> end')
+    return output_era
 
-import scipy.interpolate as spi
+
 def interpolate_atb_mol(file, era):     
     """
-    the Input is the output dataframe of simulate_atb_mol function
+    the Input is the output dataframe of simulate_Rayleight_coef function
     """
     print('-----BEFORE INTERPOLATE-----')
     d = xr.open_dataset(file)
@@ -125,8 +137,8 @@ def interpolate_atb_mol(file, era):
         print("Time Error")
         sys.exit(1)
     #------
-    columns_names = ['altitude', 'pression', 'ta']#, 'beta355mol', 'beta532mol', 'beta355', 'beta532', 'alpha355', 'alpha532', 'tau355', 'tau532', 'beta355mol', 'beta532mol'
-    pression_interp, ta_interp = [[] for _ in range(len(columns_names)-1)] #, beta355mol_interp ,beta532mol_interpbeta355_interp ,beta532_interp ,tau355_interp ,tau532_interp ,alpha355_interp ,alpha532_interp , beta355mol_interp ,beta532mol_interp, 
+    columns_names = ['altitude', 'pression', 'ta', 'beta355', 'beta532', 'alpha355', 'alpha532']#, 'beta355mol', 'beta532mol', 'tau355', 'tau532', 'beta355mol', 'beta532mol'
+    pression_interp, ta_interp, beta355_interp ,beta532_interp ,alpha355_interp ,alpha532_interp = [[] for _ in range(len(columns_names)-1)] #, beta355mol_interp ,beta532mol_interp ,tau355_interp ,tau532_interp , beta355mol_interp ,beta532mol_interp, 
     new_index = pd.MultiIndex.from_product([timeData, r], names = ['time', 'range'])
     # df_new = pd.DataFrame(index = new_index, columns = era.columns)
     print('-----INTERPOLATE ATTENUATED BACKSCATTERING FROM ERA5-----')
@@ -134,17 +146,23 @@ def interpolate_atb_mol(file, era):
         a = era.loc[pd.IndexSlice[:, t1], columns_names]
         # f1 = spi.interp1d(a['altitude'], a['beta355mol'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
         # f2 = spi.interp1d(a['altitude'], a['beta532mol'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
+        f5 = spi.interp1d(a['altitude'], a['alpha355'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
+        f6 = spi.interp1d(a['altitude'], a['alpha532'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
+        f7 = spi.interp1d(a['altitude'], a['beta355'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
+        f8 = spi.interp1d(a['altitude'], a['beta532'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
         f9 = spi.interp1d(a['altitude'], a['pression'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
         f10 = spi.interp1d(a['altitude'], a['ta'], kind = 'linear', bounds_error=False, fill_value="extrapolate")
         # beta355mol_interp, beta532mol_interp = np.append(beta355mol_interp, np.array(f1(alt))), np.append(beta532mol_interp, np.array(f2(alt)))
         # tau355_interp, tau532_interp = np.append(tau355_interp, np.array(f3(r))), np.append(tau532_interp, np.array(f4(r)))
-        # alpha355_interp, alpha532_interp = np.append(alpha355_interp, np.array(f5(r))), np.append(alpha532_interp, np.array(f6(r)))
-        # beta355_interp, beta532_interp = np.append(beta355_interp, np.array(f7(r))), np.append(beta532_interp, np.array(f8(r)))
+        alpha355_interp, alpha532_interp = np.append(alpha355_interp, np.array(f5(r))), np.append(alpha532_interp, np.array(f6(r)))
+        beta355_interp, beta532_interp = np.append(beta355_interp, np.array(f7(r))), np.append(beta532_interp, np.array(f8(r)))
         pression_interp, ta_interp = np.append(pression_interp, np.array(f9(alt))), np.append(ta_interp, np.array(f10(alt)))
         #print(str(t1))
     #------
-    new_df = pd.DataFrame(index = new_index, data = np.array([pression_interp, ta_interp]).T, columns = columns_names[1:])
-    #, beta355_interp ,beta532_interp ,alpha355_interp ,alpha532_interp ,tau355_interp ,tau532_interp, beta355mol_interp ,beta532mol_interp
+    new_df = pd.DataFrame(index = new_index, 
+        data = np.array([pression_interp, ta_interp, alpha355_interp, alpha532_interp, beta355_interp, beta532_interp]).T, 
+        columns = columns_names[1:])
+    # ,tau355_interp ,tau532_interp, beta355mol_interp ,beta532mol_interp
     # lidar = file.parts[4].split('.')[0]
     # new_df.to_pickle(Path("/homedata/nmpnguyen/OPAR/Processed",lidar.upper(),file.name.split(".")[0]+f'_{ratio}'+"_simul.pkl"))
     # print('interpolate_atb_mol --> end')
@@ -156,18 +174,19 @@ def interpolate_atb_mol(file, era):
 
 def main_simulate(file):
     variables_from_era_data = variables_from_era(file)
-    new_netcdf = interpolate_atb_mol(file, variables_from_era_data)
-    if os.path.exists('/home/nmpnguyen/tmp_simul.nc'):
-        os.remove('/home/nmpnguyen/tmp_simul.nc')
-    new_netcdf.to_netcdf('/home/nmpnguyen/tmp_simul.nc', 'w')
+    variables_Rayleight_computed = simulate_Rayleight_coef(variables_from_era_data)
+    new_netcdf = interpolate_atb_mol(file, variables_Rayleight_computed)
+    if os.path.exists('/homedata/nmpnguyen/database_lidars/tmp_simul.nc'):
+        os.remove('/home/nmpnguyen/database_lidars/tmp_simul.nc')
+    new_netcdf.to_netcdf('/home/nmpnguyen/database_lidars/tmp_simul.nc', 'w')
     return 0
 
 from argparse import Namespace, ArgumentParser
 # def main():
 parser = ArgumentParser()
-parser.add_argument("--path_of_tmp_file", "-file", type=str, help=" ", required=True)
+parser.add_argument("--path_of_raw_tmpfile", "-file", type=str, help=" ", required=True)
 opts = parser.parse_args()
 print(opts)
 
 if __name__ == "__main__":
-    main_simulate(Path(opts.path_of_tmp_file))
+    main_simulate(Path(opts.path_of_raw_tmpfile))
